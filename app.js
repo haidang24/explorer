@@ -1,8 +1,8 @@
 const express = require("express");
 const Web3 = require("web3");
 const path = require("path");
-const WebSocket = require("ws");
 const http = require("http");
+const { Server } = require("socket.io");
 require("dotenv").config();
 
 const app = express();
@@ -11,8 +11,8 @@ const port = process.env.PORT || 3000;
 // Create HTTP server
 const server = http.createServer(app);
 
-// Create WebSocket server
-const wss = new WebSocket.Server({ server });
+// Create Socket.IO server
+const io = new Server(server);
 
 // Connect to local Geth node
 const web3 = new Web3(
@@ -23,7 +23,7 @@ const web3 = new Web3(
 
 // Also connect via WebSocket for subscriptions
 const web3WS = new Web3(
-  new Web3.providers.WebsocketProvider(``
+  new Web3.providers.WebsocketProvider(
     process.env.GETH_WS_URL || "ws://localhost:8546"
   )
 );
@@ -31,9 +31,9 @@ const web3WS = new Web3(
 app.use(express.static("public"));
 app.use(express.json());
 
-// WebSocket connection handling
-wss.on("connection", (ws) => {
-  console.log("New WebSocket client connected");
+// Socket.IO connection handling
+io.on("connection", (socket) => {
+  console.log("New client connected");
 
   // Subscribe to new blocks
   const blockSubscription = web3WS.eth.subscribe(
@@ -50,7 +50,7 @@ wss.on("connection", (ws) => {
     try {
       // Get full block details
       const block = await web3.eth.getBlock(blockHeader.number, true);
-      ws.send(JSON.stringify({ type: "newBlock", data: block }));
+      socket.emit("newBlock", block);
 
       // Get updated network stats
       const [gasPrice, peerCount, hashrate] = await Promise.all([
@@ -59,37 +59,35 @@ wss.on("connection", (ws) => {
         web3.eth.getHashrate(),
       ]);
 
-      ws.send(
-        JSON.stringify({
-          type: "networkStats",
-          data: {
-            latestBlockNumber: block.number,
-            latestBlockTime: block.timestamp,
-            gasPrice: web3.utils.fromWei(gasPrice, "gwei"),
-            peerCount,
-            hashrate,
-          },
-        })
-      );
+      socket.emit("networkStats", {
+        latestBlockNumber: block.number,
+        latestBlockTime: block.timestamp,
+        gasPrice: web3.utils.fromWei(gasPrice, "gwei"),
+        peerCount,
+        hashrate,
+      });
     } catch (error) {
       console.error("Error processing new block:", error);
     }
   });
 
   // Subscribe to pending transactions
-  const pendingTxSubscription = web3WS.eth.subscribe("pendingTransactions", (error, result) => {
-    if (error) {
-      console.error("Transaction subscription error:", error);
-      return;
+  const pendingTxSubscription = web3WS.eth.subscribe(
+    "pendingTransactions",
+    (error, result) => {
+      if (error) {
+        console.error("Transaction subscription error:", error);
+        return;
+      }
     }
-  });
+  );
 
   pendingTxSubscription.on("data", async (txHash) => {
     try {
       // Get transaction details
       const [tx, block] = await Promise.all([
         web3.eth.getTransaction(txHash),
-        web3.eth.getBlock("latest")
+        web3.eth.getBlock("latest"),
       ]);
 
       if (tx) {
@@ -97,15 +95,12 @@ wss.on("connection", (ws) => {
         const enrichedTx = {
           ...tx,
           timestamp: block.timestamp,
-          status: tx.blockNumber ? 'confirmed' : 'pending',
-          value: tx.value || '0',
-          gasPrice: tx.gasPrice || '0'
+          status: tx.blockNumber ? "confirmed" : "pending",
+          value: tx.value || "0",
+          gasPrice: tx.gasPrice || "0",
         };
 
-        ws.send(JSON.stringify({ 
-          type: "newTransaction", 
-          data: enrichedTx 
-        }));
+        socket.emit("newTransaction", enrichedTx);
 
         // If transaction is in a block, get receipt for more details
         if (tx.blockNumber) {
@@ -113,16 +108,13 @@ wss.on("connection", (ws) => {
           if (receipt) {
             const confirmedTx = {
               ...enrichedTx,
-              status: receipt.status ? 'success' : 'failed',
+              status: receipt.status ? "success" : "failed",
               gasUsed: receipt.gasUsed,
               logs: receipt.logs,
-              contractAddress: receipt.contractAddress
+              contractAddress: receipt.contractAddress,
             };
-            
-            ws.send(JSON.stringify({ 
-              type: "transactionConfirmed", 
-              data: confirmedTx 
-            }));
+
+            socket.emit("transactionConfirmed", confirmedTx);
           }
         }
       }
@@ -131,7 +123,7 @@ wss.on("connection", (ws) => {
     }
   });
 
-  ws.on("close", () => {
+  socket.on("disconnect", () => {
     console.log("Client disconnected");
     blockSubscription.unsubscribe();
     pendingTxSubscription.unsubscribe();

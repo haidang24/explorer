@@ -81,58 +81,40 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
-// WebSocket connection
-let ws;
-let reconnectAttempts = 0;
-const maxReconnectAttempts = 5;
+// Socket.IO connection
+const socket = io();
 
-function connectWebSocket() {
-  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  const wsUrl = `${protocol}//${window.location.host}`;
+socket.on("connect", () => {
+  console.log("Connected to server");
+  showToast("Connected to real-time updates");
+});
 
-  ws = new WebSocket(wsUrl);
+socket.on("disconnect", () => {
+  console.log("Disconnected from server");
+  showToast("Disconnected from server. Attempting to reconnect...");
+});
 
-  ws.onopen = () => {
-    console.log("WebSocket connected");
-    reconnectAttempts = 0;
-    showToast("Connected to real-time updates");
-  };
+socket.on("connect_error", (error) => {
+  console.error("Connection error:", error);
+  showToast("Error connecting to server");
+});
 
-  ws.onclose = () => {
-    console.log("WebSocket disconnected");
-    if (reconnectAttempts < maxReconnectAttempts) {
-      setTimeout(() => {
-        reconnectAttempts++;
-        connectWebSocket();
-      }, 3000);
-    } else {
-      showToast("Real-time updates disconnected. Please refresh the page.");
-    }
-  };
+// Handle real-time updates
+socket.on("networkStats", (stats) => {
+  updateNetworkStats(stats);
+});
 
-  ws.onerror = (error) => {
-    console.error("WebSocket error:", error);
-  };
+socket.on("newBlock", (block) => {
+  handleNewBlock(block);
+});
 
-  ws.onmessage = (event) => {
-    const message = JSON.parse(event.data);
+socket.on("newTransaction", (tx) => {
+  handleNewTransaction(tx);
+});
 
-    switch (message.type) {
-      case "networkStats":
-        updateNetworkStats(message.data);
-        break;
-      case "newBlock":
-        handleNewBlock(message.data);
-        break;
-      case "newTransaction":
-        handleNewTransaction(message.data);
-        break;
-      case "transactionConfirmed":
-        updateTransaction(message.data);
-        break;
-    }
-  };
-}
+socket.on("transactionConfirmed", (tx) => {
+  updateTransaction(tx);
+});
 
 // Update network stats with animation
 function updateNetworkStats(stats) {
@@ -1050,9 +1032,6 @@ document.addEventListener("DOMContentLoaded", () => {
   // Initial data load
   fetchNetworkStats();
   fetchLatestBlocks();
-
-  // Connect WebSocket
-  connectWebSocket();
 
   // Set active tab based on URL hash or default to blocks
   const hash = window.location.hash.substring(1);
