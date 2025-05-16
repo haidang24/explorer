@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Geth Private Network Explorer</title>
+    <link rel="stylesheet" href="css/style.css" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+      rel="stylesheet"
+    />
+    <link rel="icon" type="image/png" href="https://ethereum.org/favicon.png" />
+  </head>
+  <body>
+    <nav>
+      <div class="container">
+        <h1><i class="fas fa-cubes"></i> Geth Explorer</h1>
+        <div class="search-box">
+          <input
+            type="text"
+            id="searchInput"
+            placeholder="Search by Block / Tx Hash / Address / Token"
+          />
+          <button onclick="search()">
+            <i class="fas fa-search"></i> Search
+          </button>
+        </div>
+      </div>
+    </nav>
+
+    <main class="container">
+      <div class="network-stats">
+        <div class="stat-card">
+          <i class="fas fa-cube"></i>
+          <div class="stat-info">
+            <h3>Latest Block</h3>
+            <p id="latestBlock">-</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <i class="fas fa-gas-pump"></i>
+          <div class="stat-info">
+            <h3>Gas Price</h3>
+            <p id="gasPrice">-</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <i class="fas fa-network-wired"></i>
+          <div class="stat-info">
+            <h3>Connected Peers</h3>
+            <p id="peerCount">-</p>
+          </div>
+        </div>
+        <div class="stat-card">
+          <i class="fas fa-tachometer-alt"></i>
+          <div class="stat-info">
+            <h3>Network Hashrate</h3>
+            <p id="hashrate">-</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="tabs">
+        <button class="tab-btn active" onclick="showTab('blocks')">
+          <i class="fas fa-cubes"></i> Blocks
+        </button>
+        <button class="tab-btn" onclick="showTab('transactions')">
+          <i class="fas fa-exchange-alt"></i> Transactions
+        </button>
+        <button class="tab-btn" onclick="showTab('tokens')">
+          <i class="fas fa-coins"></i> Tokens
+        </button>
+      </div>
+
+      <div id="blocks-tab" class="tab-content active">
+        <div class="blocks-container">
+          <h2>Latest Blocks</h2>
+          <div id="latestBlocks" class="blocks-grid">
+            <div class="loading">
+              <i class="fas fa-spinner fa-spin"></i> Loading blocks...
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="transactions-tab" class="tab-content">
+        <div class="transactions-container">
+          <h2>Latest Transactions</h2>
+          <div id="latestTransactions" class="transactions-grid">
+            <div class="loading">
+              <i class="fas fa-spinner fa-spin"></i> Loading transactions...
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="tokens-tab" class="tab-content">
+        <div class="tokens-container">
+          <h2>Token List</h2>
+          <div id="tokenList" class="tokens-grid">
+            <div class="empty-state">
+              <i class="fas fa-info-circle"></i> No tokens found in the network
+              yet
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="details-container" id="blockDetails" style="display: none">
+        <h2><i class="fas fa-cube"></i> Block Details</h2>
+        <div class="details-content"></div>
+        <div class="block-transactions">
+          <h3><i class="fas fa-exchange-alt"></i> Block Transactions</h3>
+          <div class="transactions-list"></div>
+        </div>
+      </div>
+
+      <div
+        class="details-container"
+        id="transactionDetails"
+        style="display: none"
+      >
+        <h2><i class="fas fa-exchange-alt"></i> Transaction Details</h2>
+        <div class="details-content"></div>
+        <div class="transaction-logs">
+          <h3><i class="fas fa-list"></i> Event Logs</h3>
+          <div class="logs-list"></div>
+        </div>
+      </div>
+
+      <div class="details-container" id="addressDetails" style="display: none">
+        <h2><i class="fas fa-user-circle"></i> Address Details</h2>
+        <div class="details-content"></div>
+        <div class="tabs">
+          <button
+            class="tab-btn active"
+            onclick="showAddressTab('transactions')"
+          >
+            <i class="fas fa-exchange-alt"></i> Transactions
+          </button>
+          <button class="tab-btn" onclick="showAddressTab('tokens')">
+            <i class="fas fa-coins"></i> Tokens
+          </button>
+          <button
+            class="tab-btn"
+            onclick="showAddressTab('code')"
+            id="contractCodeTab"
+          >
+            <i class="fas fa-file-code"></i> Contract
+          </button>
+        </div>
+        <div class="address-tabs-content">
+          <div id="address-transactions" class="address-tab active"></div>
+          <div id="address-tokens" class="address-tab">
+            <div class="empty-state">
+              <i class="fas fa-info-circle"></i> No tokens found for this
+              address
+            </div>
+          </div>
+          <div id="address-code" class="address-tab">
+            <pre><code id="contractCode"></code></pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="details-container" id="tokenDetails" style="display: none">
+        <h2><i class="fas fa-coins"></i> Token Details</h2>
+        <div class="details-content"></div>
+        <div class="tabs">
+          <button class="tab-btn active" onclick="showTokenTab('transfers')">
+            <i class="fas fa-exchange-alt"></i> Transfers
+          </button>
+          <button class="tab-btn" onclick="showTokenTab('holders')">
+            <i class="fas fa-users"></i> Holders
+          </button>
+        </div>
+        <div class="token-tabs-content">
+          <div id="token-transfers" class="token-tab active">
+            <div class="empty-state">
+              <i class="fas fa-info-circle"></i> No transfers found for this
+              token
+            </div>
+          </div>
+          <div id="token-holders" class="token-tab">
+            <div class="empty-state">
+              <i class="fas fa-info-circle"></i> No holders data available
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <footer>
+        <div class="container">
+          <p>© 2023 Geth Private Network Explorer</p>
+          <div class="footer-links">
+            <a href="https://github.com/ethereum/go-ethereum" target="_blank">
+              <i class="fab fa-github"></i> Geth
+            </a>
+            <a href="https://ethereum.org" target="_blank">
+              <i class="fab fa-ethereum"></i> Ethereum
+            </a>
+          </div>
+        </div>
+      </footer>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/moment.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
+    <script src="js/main.js"></script>
+  </body>
+</html>

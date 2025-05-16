@@ -1,0 +1,16 @@
+{
+  "name": "geth-explorer",
+  "version": "1.0.0",
+  "description": "Blockchain explorer for private Geth network",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "web3": "^1.10.0",
+    "moment": "^2.29.4",
+    "dotenv": "^16.0.3",
+    "ws": "^8.13.0"
+  }
+}
