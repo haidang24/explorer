@@ -17,8 +17,8 @@ A blockchain explorer for your private Geth network. This explorer allows you to
 
 1. Clone this repository:
 ```bash
-git clone <repository-url>
-cd geth-explorer
+git clone https://github.com/haidang24/explorer.git
+cd explorer
 ```
 
 2. Install dependencies:
